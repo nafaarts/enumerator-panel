@@ -46,20 +46,21 @@ Entitas utama. Setiap form dan enumerator milik satu organisasi.
 #### `enumerators`
 Petugas lapangan yang melakukan survei.
 - `id` (uuid): PK
-- `organization_id` (uuid): FK ke organizations
 - `name` (text)
 - `phone` (text): Digunakan untuk login (unik)
-- `access_token` (text): Token sederhana untuk sesi mobile (bisa diganti JWT nanti)
+- `access_token` (text): Token sederhana untuk sesi mobile
 - `device_id` (text): Mengunci akun ke satu perangkat
 - `expired_at` (timestamptz): Validitas sesi
+- `created_at` (timestamptz)
+- `organization_id` (uuid): FK ke organizations
 
 #### `forms`
-Template formulir yang dibuat oleh admin.
-- `id` (text): Custom ID (slug), misal `form-bencana-2024`.
-- `organization_id` (uuid): FK ke organizations
+Template formulir. Bersifat independen, bisa digunakan oleh banyak organisasi.
+- `id` (text): PK (Custom ID/slug)
 - `title` (text)
 - `version` (int): Increment saat ada perubahan schema.
-- `schema` (jsonb): Struktur pertanyaan (Lihat bag. 4).
+- `schema` (jsonb): Struktur pertanyaan.
+- `created_at` (timestamptz)
 
 #### `submissions`
 Data hasil survei yang dikirim enumerator.
@@ -67,7 +68,6 @@ Data hasil survei yang dikirim enumerator.
 - `form_id` (text): FK ke forms
 - `enumerator_id` (uuid): FK ke enumerators
 - `data` (jsonb): Jawaban survei (Key-Value pair).
-- `location` (geometry): Titik koordinat GPS (PostGIS Point).
 - `created_at` (timestamptz)
 
 ### Relationships
@@ -169,7 +169,7 @@ Aplikasi harus bersifat **Offline-First**.
     }
     ```
 3.  **Sync**: Saat online, kirim data ke tabel `submissions`.
-    -   Payload: `form_id`, `enumerator_id`, `data` (JSON), `location` (Lat/Lng).
+    -   Payload: `form_id`, `enumerator_id`, `data` (JSON).
 
 ### D. Image Upload
 -   Gunakan Supabase Storage.
@@ -181,7 +181,7 @@ Aplikasi harus bersifat **Offline-First**.
 
 ### E. Location (GPS)
 -   Jika field type = `location`, App wajib mengambil koordinat GPS saat pengisian.
--   Kirim format PostGIS point atau lat/lng terpisah yang nanti dikonversi backend.
+-   Simpan koordinat ke dalam JSON `data` jawaban (bukan dikirim terpisah).
 
 ---
 
