@@ -206,7 +206,25 @@ Aplikasi harus bersifat **Offline-First**.
 
 ---
 
-## 7. Referensi Migrasi
+## 7. Development Utilities
+
+### Seeding Test Data
+Untuk keperluan testing dan development, telah disediakan script SQL untuk mengisi database dengan data dummy yang mencakup:
+- Enumerator (Budi Santoso & Siti Aminah)
+- Form Test Lengkap (dengan berbagai tipe field)
+- Submission contoh (Verified, Pending, Rejected)
+
+**Cara Menggunakan:**
+1.  Buka dashboard Supabase project Anda.
+2.  Masuk ke menu **SQL Editor**.
+3.  Copy isi file `supabase/migrations/009_seed_test_data.sql`.
+4.  Paste dan jalankan (Run) script tersebut.
+
+Script ini aman dijalankan berulang kali (idempotent) untuk data enumerator dan form karena menggunakan `ON CONFLICT DO NOTHING`, namun akan menambahkan submission baru setiap kali dijalankan.
+
+---
+
+## 8. Referensi Migrasi
 Jika Anda memperbarui struktur database, pastikan untuk:
 1.  Membuat file migrasi di `supabase/migrations`.
 2.  Memperbarui `src/types/index.ts`.
