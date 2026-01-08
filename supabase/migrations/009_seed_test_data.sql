@@ -1,8 +1,14 @@
--- Insert Test Enumerators
-INSERT INTO enumerators (id, name, phone, created_at)
+-- Insert Test Organization
+INSERT INTO organizations (id, name, description, created_at)
 VALUES 
-  ('e2222222-2222-2222-2222-222222222222', 'Budi Santoso', '081234567891', NOW()),
-  ('e3333333-3333-3333-3333-333333333333', 'Siti Aminah', '081234567892', NOW())
+  ('a0000000-0000-0000-0000-000000000000', 'Organisasi Test A', 'Organisasi untuk testing seeder', NOW())
+ON CONFLICT (id) DO NOTHING;
+
+-- Insert Test Enumerators
+INSERT INTO enumerators (id, name, phone, organization_id, created_at)
+VALUES 
+  ('e2222222-2222-2222-2222-222222222222', 'Budi Santoso', '081234567891', 'a0000000-0000-0000-0000-000000000000', NOW()),
+  ('e3333333-3333-3333-3333-333333333333', 'Siti Aminah', '081234567892', 'a0000000-0000-0000-0000-000000000000', NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert Test Form with various fields
@@ -33,6 +39,12 @@ VALUES
   }', 
   NOW())
 ON CONFLICT (id) DO NOTHING;
+
+-- Assign Form to Organization
+INSERT INTO form_assignments (form_id, organization_id)
+VALUES 
+  ('form-test-lengkap', 'a0000000-0000-0000-0000-000000000000')
+ON CONFLICT (form_id, organization_id) DO NOTHING;
 
 -- Assign Enumerators to Form
 INSERT INTO enumerator_assignments (enumerator_id, form_id)

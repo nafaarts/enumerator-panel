@@ -4,7 +4,8 @@ import { DataTable } from '@/components/ui/data-table'
 import { ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown, Download, Table as TableIcon, Map as MapIcon, Eye, CheckCircle, XCircle, Clock } from 'lucide-react'
 import { format } from 'date-fns'
-import Map from '@/components/Map'
+import dynamic from 'next/dynamic'
+const Map = dynamic(() => import('@/components/Map'), { ssr: false })
 import { exportToExcel } from '@/lib/export'
 import { useState, useMemo, use } from 'react'
 // import { useRouter } from 'next/navigation'
@@ -303,8 +304,6 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                 'Admin Notes': row.admin_notes,
                 'Verified At': row.verified_at ? format(new Date(row.verified_at), 'yyyy-MM-dd HH:mm:ss') : '',
                 'Date': formattedDate,
-                'Latitude': '',
-                'Longitude': '',
             }
 
             // Try to find location from data
@@ -318,7 +317,7 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
             }
 
             const dynamicFields: Record<string, unknown> = {}
-            form?.schema?.fields?.forEach(col => {
+            allFields.forEach(col => {
                 const val = row.data[col.id]
                 dynamicFields[col.label] = typeof val === 'object' ? JSON.stringify(val) : val
             })
@@ -396,18 +395,83 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                 <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center justify-between">
+                        <DialogTitle className="flex items-center gap-2">
                             <span>Submission Details</span>
-                            {selectedSubmission && getStatusBadge(selectedSubmission.status)}
                         </DialogTitle>
                         <DialogDescription>
-                            Submitted by {selectedSubmission?.enumerator_name} on {selectedSubmission?.created_at && format(new Date(selectedSubmission.created_at), 'PPP pp')}
+                            <div className="mb-2">
+                                Submitted by {selectedSubmission?.enumerator_name} on {selectedSubmission?.created_at && format(new Date(selectedSubmission.created_at), 'PPP pp')}
+                            </div>
+                            {selectedSubmission && getStatusBadge(selectedSubmission.status)}
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto pr-2 space-y-6 py-4">
+                        {/* Data Section */}
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-sm">Data Submission</h3>
+
+                            <div className="grid gap-4">
+                                {allFields.map(col => (
+                                    <div key={col.id} className="grid grid-cols-1 md:grid-cols-3 gap-2 border-b last:border-0 pb-3 last:pb-0">
+                                        <span className="text-sm font-medium text-muted-foreground md:col-span-1">{col.label}</span>
+                                        <div className="text-sm md:col-span-2 break-words">
+                                            {col.type === 'image' && selectedSubmission?.data[col.id] ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {Array.isArray(selectedSubmission.data[col.id]) ? (
+                                                        (selectedSubmission.data[col.id] as string[]).map((url, idx) => (
+                                                            <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="block w-24 h-24 relative border rounded overflow-hidden hover:opacity-90 transition-opacity">
+                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                <img src={url} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
+                                                            </a>
+                                                        ))
+                                                    ) : (
+                                                        <a href={String(selectedSubmission.data[col.id])} target="_blank" rel="noopener noreferrer" className="block w-32 h-32 relative border rounded overflow-hidden hover:opacity-90 transition-opacity">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={String(selectedSubmission.data[col.id])} alt="Submission Image" className="w-full h-full object-cover" />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            ) : col.type === 'location' && selectedSubmission?.data[col.id] ? (
+                                                <div className="w-full h-[200px] rounded-md overflow-hidden border">
+                                                    {(() => {
+                                                        const loc = parseLocation(selectedSubmission.data[col.id])
+                                                        if (!loc) return <span className="text-muted-foreground">Invalid location data</span>
+                                                        return (
+                                                            <Map
+                                                                markers={[{
+                                                                    id: 'detail-loc',
+                                                                    lat: loc.lat,
+                                                                    lng: loc.lng,
+                                                                    title: 'Location'
+                                                                }]}
+                                                                center={[loc.lat, loc.lng]}
+                                                                className="h-full w-full"
+                                                            />
+                                                        )
+                                                    })()}
+                                                </div>
+                                            ) : Array.isArray(selectedSubmission?.data[col.id]) ? (
+                                                <div className="flex flex-wrap gap-1">
+                                                    {(selectedSubmission.data[col.id] as any[]).map((item, i) => (
+                                                        <Badge key={i} variant="secondary" className="rounded-sm text-xs">
+                                                            {String(item)}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                String(selectedSubmission?.data[col.id] ?? '-')
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <hr className="my-4" />
+
                         {/* Verification Section */}
-                        <div className="bg-muted/50 p-4 rounded-lg space-y-4 border">
+                        <div className="space-y-4">
                             <h3 className="font-semibold text-sm">Verification Status</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -437,65 +501,7 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                                     />
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Data Section */}
-                        <div className="grid gap-4">
-                            {form?.schema?.fields?.map(col => (
-                                <div key={col.id} className="grid grid-cols-1 md:grid-cols-3 gap-2 border-b last:border-0 pb-3 last:pb-0">
-                                    <span className="text-sm font-medium text-muted-foreground md:col-span-1">{col.label}</span>
-                                    <div className="text-sm md:col-span-2 break-words">
-                                        {col.type === 'image' && selectedSubmission?.data[col.id] ? (
-                                            <div className="flex flex-wrap gap-2">
-                                                {Array.isArray(selectedSubmission.data[col.id]) ? (
-                                                    (selectedSubmission.data[col.id] as string[]).map((url, idx) => (
-                                                        <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="block w-24 h-24 relative border rounded overflow-hidden hover:opacity-90 transition-opacity">
-                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                            <img src={url} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
-                                                        </a>
-                                                    ))
-                                                ) : (
-                                                    <a href={String(selectedSubmission.data[col.id])} target="_blank" rel="noopener noreferrer" className="block w-32 h-32 relative border rounded overflow-hidden hover:opacity-90 transition-opacity">
-                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                        <img src={String(selectedSubmission.data[col.id])} alt="Submission Image" className="w-full h-full object-cover" />
-                                                    </a>
-                                                )}
-                                            </div>
-                                        ) : col.type === 'location' && selectedSubmission?.data[col.id] ? (
-                                            <div className="w-full h-[200px] rounded-md overflow-hidden border">
-                                                {(() => {
-                                                    const loc = parseLocation(selectedSubmission.data[col.id])
-                                                    if (!loc) return <span className="text-muted-foreground">Invalid location data</span>
-                                                    return (
-                                                        <Map
-                                                            markers={[{
-                                                                id: 'detail-loc',
-                                                                lat: loc.lat,
-                                                                lng: loc.lng,
-                                                                title: 'Location'
-                                                            }]}
-                                                            center={[loc.lat, loc.lng]}
-                                                            className="h-full w-full"
-                                                        />
-                                                    )
-                                                })()}
-                                            </div>
-                                        ) : Array.isArray(selectedSubmission?.data[col.id]) ? (
-                                            <div className="flex flex-wrap gap-1">
-                                                {(selectedSubmission.data[col.id] as any[]).map((item, i) => (
-                                                    <Badge key={i} variant="secondary" className="rounded-sm text-xs">
-                                                        {String(item)}
-                                                    </Badge>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            String(selectedSubmission?.data[col.id] ?? '-')
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                        </div>                    </div>
                     <DialogFooter className="border-t pt-4">
                         <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>Cancel</Button>
                         <Button onClick={handleSaveVerification} disabled={updateStatusMutation.isPending}>

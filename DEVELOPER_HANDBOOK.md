@@ -132,8 +132,10 @@ Bagian ini khusus untuk AI atau Developer yang akan membangun aplikasi mobile.
 Enumerator **tidak** menggunakan Supabase Auth (Email/Password). Mereka login menggunakan **Nomor HP**.
 
 1.  **Login Screen**: Input Nomor HP.
-2.  **API Check**: Mobile app memanggil RPC/Function atau query ke tabel `enumerators` (via backend API wrapper untuk keamanan).
-3.  **Validation**: Cek apakah no HP terdaftar.
+2.  **API Check**: Mobile app memanggil RPC Function `check_enumerator_phone(phone_number)` di Supabase.
+    -   Function ini bersifat `security definer` (bypass RLS) dan dapat diakses oleh `anon` key.
+    -   Return: `{ id, name, organization_id }` jika ditemukan.
+3.  **Validation**: Jika data dikembalikan, login sukses.
 4.  **Session**: Simpan `enumerator_id` dan `organization_id` di local storage (AsyncStorage).
 
 ### B. Fetching Forms

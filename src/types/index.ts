@@ -55,6 +55,11 @@ export interface FormAssignment {
   assigned_at: string;
 }
 
+export interface EnumeratorAssignment {
+  enumerator_id: string;
+  form_id: string;
+}
+
 
 export interface Submission {
   id: string;
