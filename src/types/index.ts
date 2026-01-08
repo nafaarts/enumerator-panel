@@ -64,6 +64,9 @@ export interface Submission {
   enumerator_phone: string;
   data: Record<string, unknown>;
   created_at: string;
+  status: 'pending' | 'verified' | 'rejected';
+  admin_notes?: string;
+  verified_at?: string;
 }
 
 export interface Setting {

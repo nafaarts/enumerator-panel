@@ -2,19 +2,23 @@
 
 import { DataTable } from '@/components/ui/data-table'
 import { ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown, Download, Table as TableIcon, Map as MapIcon, Eye } from 'lucide-react'
+import { ArrowUpDown, Download, Table as TableIcon, Map as MapIcon, Eye, CheckCircle, XCircle, Clock } from 'lucide-react'
 import { format } from 'date-fns'
 import Map from '@/components/Map'
 import { exportToExcel } from '@/lib/export'
 import { useState, useMemo, use } from 'react'
 // import { useRouter } from 'next/navigation'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { FormTemplate, Submission, FormField } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { toast } from 'sonner'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const parseLocation = (val: any): { lat: number, lng: number } | null => {
@@ -37,9 +41,12 @@ const parseLocation = (val: any): { lat: number, lng: number } | null => {
 export default function SubmissionsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
     // const router = useRouter()
+    const queryClient = useQueryClient()
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [selectedSubmission, setSelectedSubmission] = useState<any>(null)
+    const [verificationNote, setVerificationNote] = useState('')
+    const [verificationStatus, setVerificationStatus] = useState<'pending' | 'verified' | 'rejected'>('pending')
 
     const { data: form, isLoading: isLoadingForm } = useQuery({
         queryKey: ['form', id],
@@ -69,6 +76,29 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
         },
     })
 
+    const updateStatusMutation = useMutation({
+        mutationFn: async ({ id, status, notes }: { id: string, status: string, notes?: string }) => {
+            const { error } = await supabase
+                .from('submissions')
+                .update({
+                    status,
+                    admin_notes: notes,
+                    verified_at: new Date().toISOString()
+                })
+                .eq('id', id)
+
+            if (error) throw error
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['submissions', id] })
+            toast.success('Submission status updated')
+            setIsDetailsOpen(false)
+        },
+        onError: (error) => {
+            toast.error('Failed to update status: ' + error.message)
+        }
+    })
+
     // Flatten data for export/table
     const flattenedData = useMemo(() => {
         if (!submissions || !form) return []
@@ -76,6 +106,9 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
             ...sub,
             ...sub.data, // Flatten JSONB
             enumerator_name: sub.enumerator_name || 'Unknown',
+            status: sub.status || 'pending',
+            admin_notes: sub.admin_notes || '',
+            verified_at: sub.verified_at || null
         }))
     }, [submissions, form])
 
@@ -122,6 +155,17 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
         return strValue
     }
 
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'verified':
+                return <Badge className="bg-green-500 hover:bg-green-600"><CheckCircle className="w-3 h-3 mr-1" /> Verified</Badge>
+            case 'rejected':
+                return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" /> Rejected</Badge>
+            default:
+                return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" /> Pending</Badge>
+        }
+    }
+
     // Get dynamic columns from schema
     const tableColumns = useMemo<ColumnDef<any>[]>(() => {
         if (allFields.length === 0) return []
@@ -139,6 +183,11 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                         <ArrowUpDown className="ml-2 h-4 w-4" />
                     </Button>
                 ),
+            },
+            {
+                accessorKey: "status",
+                header: "Status",
+                cell: ({ row }) => getStatusBadge(row.getValue("status"))
             },
             {
                 accessorKey: "created_at",
@@ -176,7 +225,10 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                         variant="ghost"
                         size="icon"
                         onClick={() => {
-                            setSelectedSubmission(row.original)
+                            const data = row.original
+                            setSelectedSubmission(data)
+                            setVerificationStatus(data.status || 'pending')
+                            setVerificationNote(data.admin_notes || '')
                             setIsDetailsOpen(true)
                         }}
                     >
@@ -206,8 +258,11 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                 title: sub.enumerator_name,
                 description: (
                     <div className="space-y-2 mt-1 min-w-[200px]">
-                        <div className="text-xs text-muted-foreground">
-                            {sub.created_at ? format(new Date(sub.created_at), 'dd MMM yyyy, HH:mm') : '-'}
+                        <div className="flex items-center justify-between">
+                            <div className="text-xs text-muted-foreground">
+                                {sub.created_at ? format(new Date(sub.created_at), 'dd MMM yyyy, HH:mm') : '-'}
+                            </div>
+                            {getStatusBadge(sub.status)}
                         </div>
                         <div className="flex flex-col gap-2 text-xs border-t pt-2 max-h-[200px] overflow-y-auto">
                             {allFields.map(col => {
@@ -244,6 +299,9 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
             const standardFields: Record<string, unknown> = {
                 'ID': row.id,
                 'Enumerator': row.enumerator_name,
+                'Status': row.status,
+                'Admin Notes': row.admin_notes,
+                'Verified At': row.verified_at ? format(new Date(row.verified_at), 'yyyy-MM-dd HH:mm:ss') : '',
                 'Date': formattedDate,
                 'Latitude': '',
                 'Longitude': '',
@@ -269,6 +327,15 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
         })
 
         await exportToExcel(exportData, `${form?.title || 'form'}_submissions`)
+    }
+
+    const handleSaveVerification = () => {
+        if (!selectedSubmission) return
+        updateStatusMutation.mutate({
+            id: selectedSubmission.id,
+            status: verificationStatus,
+            notes: verificationNote
+        })
     }
 
     if (isLoadingForm || isLoadingSubmissions) {
@@ -329,12 +396,50 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                 <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
                     <DialogHeader>
-                        <DialogTitle>Submission Details</DialogTitle>
+                        <DialogTitle className="flex items-center justify-between">
+                            <span>Submission Details</span>
+                            {selectedSubmission && getStatusBadge(selectedSubmission.status)}
+                        </DialogTitle>
                         <DialogDescription>
                             Submitted by {selectedSubmission?.enumerator_name} on {selectedSubmission?.created_at && format(new Date(selectedSubmission.created_at), 'PPP pp')}
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="flex-1 overflow-y-auto pr-2 space-y-4 py-4">
+
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-6 py-4">
+                        {/* Verification Section */}
+                        <div className="bg-muted/50 p-4 rounded-lg space-y-4 border">
+                            <h3 className="font-semibold text-sm">Verification Status</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="status">Status</Label>
+                                    <Select
+                                        value={verificationStatus}
+                                        onValueChange={(val: any) => setVerificationStatus(val)}
+                                    >
+                                        <SelectTrigger id="status">
+                                            <SelectValue placeholder="Select status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="pending">Pending</SelectItem>
+                                            <SelectItem value="verified">Verified</SelectItem>
+                                            <SelectItem value="rejected">Rejected</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label htmlFor="notes">Admin Notes</Label>
+                                    <Textarea
+                                        id="notes"
+                                        placeholder="Add notes about this submission..."
+                                        value={verificationNote}
+                                        onChange={(e) => setVerificationNote(e.target.value)}
+                                        className="h-20"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Data Section */}
                         <div className="grid gap-4">
                             {form?.schema?.fields?.map(col => (
                                 <div key={col.id} className="grid grid-cols-1 md:grid-cols-3 gap-2 border-b last:border-0 pb-3 last:pb-0">
@@ -391,6 +496,12 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                             ))}
                         </div>
                     </div>
+                    <DialogFooter className="border-t pt-4">
+                        <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSaveVerification} disabled={updateStatusMutation.isPending}>
+                            {updateStatusMutation.isPending ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

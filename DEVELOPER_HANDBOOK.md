@@ -69,6 +69,9 @@ Data hasil survei yang dikirim enumerator.
 - `enumerator_name` (text): Nama enumerator saat submit (Snapshot).
 - `enumerator_phone` (text): No HP enumerator (sebagai identifier unik/PK logic).
 - `data` (jsonb): Jawaban survei.
+- `status` (text): Status verifikasi ('pending', 'verified', 'rejected').
+- `admin_notes` (text): Catatan dari admin saat verifikasi.
+- `verified_at` (timestamp): Waktu verifikasi.
 - `created_at` (timestamptz)
 - `form_id` (text): FK ke forms
 
