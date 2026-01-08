@@ -109,12 +109,9 @@ Contoh data yang dikirimkan oleh enumerator:
   "id": "sub-123456789",
   "form_id": "form-dampak-banjir",
   "form_version": 1,
-  "enumerator_id": "enum-001",
+  "enumerator_name": "Budi Santoso",
+  "enumerator_phone": "08123456789",
   "created_at": "2024-01-02T14:30:00Z",
-  "location": {
-    "type": "Point",
-    "coordinates": [95.323753, 5.548290]
-  },
   "data": {
     "nama_kk": "Budi Santoso",
     "tingkat_kerusakan": "Berat",

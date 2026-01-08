@@ -60,12 +60,12 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('submissions')
-                .select('*, enumerators(name)')
+                .select('*')
                 .eq('form_id', id)
                 .order('created_at', { ascending: false })
 
             if (error) throw error
-            return data as unknown as (Submission & { enumerators: { name: string } })[]
+            return data as Submission[]
         },
     })
 
@@ -75,7 +75,7 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
         return submissions.map(sub => ({
             ...sub,
             ...sub.data, // Flatten JSONB
-            enumerator_name: sub.enumerators?.name || 'Unknown',
+            enumerator_name: sub.enumerator_name || 'Unknown',
         }))
     }, [submissions, form])
 

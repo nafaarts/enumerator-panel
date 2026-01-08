@@ -136,15 +136,7 @@ export default function EnumeratorsPage() {
   // Delete Enumerator
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // 1. Delete related submissions first
-      const { error: subError } = await supabase
-        .from('submissions')
-        .delete()
-        .eq('enumerator_id', id)
-
-      if (subError) throw subError
-
-      // 2. Delete enumerator
+      // Direct delete since submissions are decoupled
       const { error } = await supabase.from('enumerators').delete().eq('id', id)
       if (error) throw error
     },
@@ -171,45 +163,12 @@ export default function EnumeratorsPage() {
   }
 
   const handleDelete = useCallback(async (id: string) => {
-    try {
-      // Check for submissions
-      const { count, error } = await supabase
-        .from('submissions')
-        .select('*', { count: 'exact', head: true })
-        .eq('enumerator_id', id)
-
-      if (error) {
-        console.error('Error checking submissions:', error)
-        setAlertContent({
-          title: 'Error',
-          description: 'Error checking submissions. Are you sure you want to delete this enumerator?',
-          action: () => deleteMutation.mutate(id)
-        })
-        setAlertOpen(true)
-      } else if (count && count > 0) {
-        setAlertContent({
-          title: 'Delete Enumerator',
-          description: `This enumerator has ${count} submissions. Deleting them will also delete all their submissions. Are you sure?`,
-          action: () => deleteMutation.mutate(id)
-        })
-        setAlertOpen(true)
-      } else {
-        setAlertContent({
-          title: 'Delete Enumerator',
-          description: 'Are you sure you want to delete this enumerator?',
-          action: () => deleteMutation.mutate(id)
-        })
-        setAlertOpen(true)
-      }
-    } catch (error) {
-      console.error('Error in delete handler:', error)
-      setAlertContent({
-        title: 'Error',
-        description: 'An error occurred while preparing to delete: ' + (error instanceof Error ? error.message : 'Unknown error'),
-        action: () => { }
-      })
-      setAlertOpen(true)
-    }
+    setAlertContent({
+      title: 'Delete Enumerator',
+      description: 'Are you sure you want to delete this enumerator? Their past submissions will be preserved.',
+      action: () => deleteMutation.mutate(id)
+    })
+    setAlertOpen(true)
   }, [deleteMutation])
 
   const columns: ColumnDef<Enumerator>[] = useMemo(() => [

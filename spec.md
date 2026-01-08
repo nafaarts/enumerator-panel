@@ -12,7 +12,7 @@ Semua tabel wajib menggunakan **UUID** sebagai Primary Key.
 * **`forms`**: Menyimpan template kuesioner (JSON Schema) dan `version` (int).
 * **`enumerators`**: Menyimpan data enumerator, `access_token`, `device_id` (untuk lock perangkat), dan `expired_at`.
 * **`enumerator_assignments`**: Tabel junction (Many-to-Many) yang menentukan **form mana saja yang boleh diisi oleh enumerator tertentu**.
-* **`submissions`**: Menyimpan hasil input dari lapangan, mencatat `form_version`, `enumerator_id`, `data` (JSONB), dan `location` (PostGIS Point).
+* **`submissions`**: Menyimpan hasil input dari lapangan, mencatat `form_version`, `enumerator_name`, `enumerator_phone`, dan `data` (JSONB).
 
 ---
 

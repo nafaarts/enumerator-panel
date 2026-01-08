@@ -65,10 +65,12 @@ Template formulir. Bersifat independen, bisa digunakan oleh banyak organisasi.
 #### `submissions`
 Data hasil survei yang dikirim enumerator.
 - `id` (uuid): PK
-- `form_id` (text): FK ke forms
-- `enumerator_id` (uuid): FK ke enumerators
-- `data` (jsonb): Jawaban survei (Key-Value pair).
+- `form_version` (int)
+- `enumerator_name` (text): Nama enumerator saat submit (Snapshot).
+- `enumerator_phone` (text): No HP enumerator (sebagai identifier unik/PK logic).
+- `data` (jsonb): Jawaban survei.
 - `created_at` (timestamptz)
+- `form_id` (text): FK ke forms
 
 ### Relationships
 `Organization` --(1:N)--> `Enumerator`

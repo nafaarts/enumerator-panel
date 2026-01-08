@@ -60,7 +60,8 @@ export interface Submission {
   id: string;
   form_id: string;
   form_version: number;
-  enumerator_id: string;
+  enumerator_name: string;
+  enumerator_phone: string;
   data: Record<string, unknown>;
   created_at: string;
 }
