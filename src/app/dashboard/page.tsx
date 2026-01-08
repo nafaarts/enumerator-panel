@@ -1,7 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, FileText, Activity, ClipboardList } from 'lucide-react'
+import { Users, FileText, Activity, ClipboardList, Building2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
@@ -12,17 +12,20 @@ export default function DashboardPage() {
       const [
         { count: enumeratorsCount },
         { count: submissionsCount },
-        { count: formsCount }
+        { count: formsCount },
+        { count: organizationsCount }
       ] = await Promise.all([
         supabase.from('enumerators').select('*', { count: 'exact', head: true }),
         supabase.from('submissions').select('*', { count: 'exact', head: true }),
-        supabase.from('forms').select('*', { count: 'exact', head: true })
+        supabase.from('forms').select('*', { count: 'exact', head: true }),
+        supabase.from('organizations').select('*', { count: 'exact', head: true })
       ])
-      
+
       return {
         enumerators: enumeratorsCount || 0,
         submissions: submissionsCount || 0,
-        forms: formsCount || 0
+        forms: formsCount || 0,
+        organizations: organizationsCount || 0
       }
     }
   })
@@ -30,8 +33,25 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-      
-      <div className="grid gap-4 md:grid-cols-3">
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Organizations
+            </CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? '...' : stats?.organizations}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Registered organizations
+            </p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -48,7 +68,7 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -65,7 +85,7 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">

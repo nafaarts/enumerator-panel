@@ -22,6 +22,7 @@ export interface MapMarker {
   lng: number
   title?: string
   description?: React.ReactNode
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: any
 }
 

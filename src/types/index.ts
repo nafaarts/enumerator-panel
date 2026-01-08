@@ -1,14 +1,22 @@
+export interface Organization {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+}
+
 export interface Enumerator {
   id: string;
   name: string;
   phone: string;
+  organization_id: string;
   access_token: string | null;
   device_id: string | null;
   expired_at: string | null; // ISO string
   created_at: string;
 }
 
-export type FieldType = 'text' | 'number' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'date' | 'location' | 'image';
+export type FieldType = 'text' | 'number' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'date' | 'location' | 'image' | 'data-warga';
 
 export interface FormField {
   id: string;
@@ -20,8 +28,16 @@ export interface FormField {
   description?: string;
 }
 
-export interface FormSchema {
+export interface FormSection {
+  id: string;
+  title: string;
+  description?: string;
   fields: FormField[];
+}
+
+export interface FormSchema {
+  fields?: FormField[]; // Legacy support
+  sections?: FormSection[]; // New standard
 }
 
 export interface FormTemplate {
@@ -32,10 +48,13 @@ export interface FormTemplate {
   created_at: string;
 }
 
-export interface Assignment {
-  enumerator_id: string;
+export interface FormAssignment {
+  id: string;
   form_id: string;
+  organization_id: string;
+  assigned_at: string;
 }
+
 
 export interface Submission {
   id: string;
@@ -44,4 +63,10 @@ export interface Submission {
   enumerator_id: string;
   data: Record<string, unknown>;
   created_at: string;
+}
+
+export interface Setting {
+  key: string;
+  value: string;
+  updated_at: string;
 }

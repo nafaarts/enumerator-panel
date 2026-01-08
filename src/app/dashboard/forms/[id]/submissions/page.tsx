@@ -1,21 +1,22 @@
 'use client'
 
+import { DataTable } from '@/components/ui/data-table'
+import { ColumnDef } from '@tanstack/react-table'
+import { ArrowUpDown, Download, Table as TableIcon, Map as MapIcon, Eye } from 'lucide-react'
+import { format } from 'date-fns'
+import Map from '@/components/Map'
+import { exportToExcel } from '@/lib/export'
 import { useState, useMemo, use } from 'react'
-import { useRouter } from 'next/navigation'
+// import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { FormTemplate, Submission, FormField } from '@/types'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Download, Search, Table as TableIcon, Map as MapIcon, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye } from 'lucide-react'
-import { format } from 'date-fns'
-import Map from '@/components/Map'
-import { exportToExcel } from '@/lib/export'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const parseLocation = (val: any): { lat: number, lng: number } | null => {
     let lat = 0, lng = 0;
     if (typeof val === 'string') {
@@ -35,11 +36,9 @@ const parseLocation = (val: any): { lat: number, lng: number } | null => {
 
 export default function SubmissionsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
-    const router = useRouter()
-    const [searchTerm, setSearchTerm] = useState('')
-    const [currentPage, setCurrentPage] = useState(1)
-    const itemsPerPage = 10
+    // const router = useRouter()
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [selectedSubmission, setSelectedSubmission] = useState<any>(null)
 
     const { data: form, isLoading: isLoadingForm } = useQuery({
@@ -70,12 +69,6 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
         },
     })
 
-    // Get dynamic columns from schema
-    const columns = useMemo(() => {
-        if (!form?.schema?.fields) return []
-        return form.schema.fields
-    }, [form])
-
     // Flatten data for export/table
     const flattenedData = useMemo(() => {
         if (!submissions || !form) return []
@@ -86,104 +79,14 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
         }))
     }, [submissions, form])
 
-    // Prepare Map Markers
-    const mapMarkers = useMemo(() => {
-        const locationField = columns.find(c => c.type === 'location')
-        if (!flattenedData || !locationField) return []
-
-        return flattenedData.map(sub => {
-            const loc = parseLocation(sub.data[locationField.id])
-            if (!loc) return null
-
-            return {
-                id: sub.id,
-                lat: loc.lat,
-                lng: loc.lng,
-                title: sub.enumerator_name,
-                description: (
-                    <div className="space-y-2 mt-1 min-w-[200px]">
-                        <div className="text-xs text-muted-foreground">
-                            {sub.created_at ? format(new Date(sub.created_at), 'dd MMM yyyy, HH:mm') : '-'}
-                        </div>
-                        <div className="flex flex-col gap-2 text-xs border-t pt-2 max-h-[200px] overflow-y-auto">
-                            {columns.map(col => {
-                                if (col.type === 'location' || col.type === 'image') return null;
-                                const val = sub.data[col.id];
-                                if (val === undefined || val === null || val === '') return null;
-
-                                return (
-                                    <div key={col.id} className="flex flex-col">
-                                        <span className="font-semibold text-muted-foreground text-[10px] uppercase">{col.label}</span>
-                                        <span className="break-words">{Array.isArray(val) ? val.join(', ') : (typeof val === 'object' ? JSON.stringify(val) : String(val))}</span>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </div>
-                )
-            }
-        }).filter((m): m is any => m !== null)
-    }, [flattenedData, columns])
-
-    // Filter and Pagination
-    const filteredData = useMemo(() => {
-        if (!searchTerm) return flattenedData
-        const lowerTerm = searchTerm.toLowerCase()
-        return flattenedData.filter(item =>
-            item.enumerator_name.toLowerCase().includes(lowerTerm) ||
-            Object.values(item.data).some(val =>
-                String(val).toLowerCase().includes(lowerTerm)
-            )
-        )
-    }, [flattenedData, searchTerm])
-
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage)
-    const currentData = filteredData.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    )
-
-    const handleExport = async () => {
-        if (!flattenedData.length) return
-
-        // Prepare data for Excel
-        const exportData = flattenedData.map(row => {
-            let formattedDate = ''
-            try {
-                formattedDate = row.created_at ? format(new Date(row.created_at), 'yyyy-MM-dd HH:mm:ss') : ''
-            } catch (e) {
-                formattedDate = 'Invalid Date'
-            }
-
-            const standardFields: Record<string, unknown> = {
-                'ID': row.id,
-                'Enumerator': row.enumerator_name,
-                'Date': formattedDate,
-                'Latitude': '',
-                'Longitude': '',
-            }
-
-            // Try to find location from data
-            const locationField = columns.find(c => c.type === 'location')
-            if (locationField) {
-                const loc = parseLocation(row.data[locationField.id])
-                if (loc) {
-                    standardFields['Latitude'] = String(loc.lat)
-                    standardFields['Longitude'] = String(loc.lng)
-                }
-            }
-
-            const dynamicFields: Record<string, unknown> = {}
-            columns.forEach(col => {
-                const val = row.data[col.id]
-                dynamicFields[col.label] = typeof val === 'object' ? JSON.stringify(val) : val
-            })
-
-            return { ...standardFields, ...dynamicFields }
-        })
-
-        await exportToExcel(exportData, `${form?.title || 'form'}_submissions`)
-    }
+    // Get all fields from schema (handling both legacy fields and new sections)
+    const allFields = useMemo(() => {
+        if (!form?.schema) return []
+        if (form.schema.sections) {
+            return form.schema.sections.flatMap(section => section.fields)
+        }
+        return form.schema.fields || []
+    }, [form])
 
     const renderCellContent = (col: FormField, value: any) => {
         if (value === null || value === undefined) return <span className="text-muted-foreground">-</span>
@@ -217,6 +120,155 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
             return <span title={strValue}>{strValue.substring(0, 30)}...</span>
         }
         return strValue
+    }
+
+    // Get dynamic columns from schema
+    const tableColumns = useMemo<ColumnDef<any>[]>(() => {
+        if (allFields.length === 0) return []
+
+        const baseColumns: ColumnDef<any>[] = [
+            {
+                accessorKey: "enumerator_name",
+                header: ({ column }) => (
+                    <Button
+                        variant="ghost"
+                        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                        className="pl-0 hover:bg-transparent"
+                    >
+                        Enumerator
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                ),
+            },
+            {
+                accessorKey: "created_at",
+                header: ({ column }) => (
+                    <Button
+                        variant="ghost"
+                        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                        className="pl-0 hover:bg-transparent"
+                    >
+                        Date
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                ),
+                cell: ({ row }) => {
+                    const date = row.getValue("created_at") as string
+                    return <span className="whitespace-nowrap">{date ? format(new Date(date), 'dd MMM yyyy, HH:mm') : '-'}</span>
+                }
+            }
+        ]
+
+        const dynamicColumns: ColumnDef<any>[] = allFields.map((field) => ({
+            accessorKey: field.id,
+            header: field.label,
+            cell: ({ row }) => {
+                const val = row.getValue(field.id)
+                return renderCellContent(field, val)
+            }
+        }))
+
+        const actionColumn: ColumnDef<any> = {
+            id: "actions",
+            cell: ({ row }) => {
+                return (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                            setSelectedSubmission(row.original)
+                            setIsDetailsOpen(true)
+                        }}
+                    >
+                        <Eye className="h-4 w-4" />
+                    </Button>
+                )
+            }
+        }
+
+        return [...baseColumns, ...dynamicColumns, actionColumn]
+    }, [form])
+
+    // Prepare Map Markers
+    const mapMarkers = useMemo(() => {
+        if (allFields.length === 0) return []
+        const locationField = allFields.find(c => c.type === 'location')
+        if (!flattenedData || !locationField) return []
+
+        return flattenedData.map(sub => {
+            const loc = parseLocation(sub.data[locationField.id])
+            if (!loc) return null
+
+            return {
+                id: sub.id,
+                lat: loc.lat,
+                lng: loc.lng,
+                title: sub.enumerator_name,
+                description: (
+                    <div className="space-y-2 mt-1 min-w-[200px]">
+                        <div className="text-xs text-muted-foreground">
+                            {sub.created_at ? format(new Date(sub.created_at), 'dd MMM yyyy, HH:mm') : '-'}
+                        </div>
+                        <div className="flex flex-col gap-2 text-xs border-t pt-2 max-h-[200px] overflow-y-auto">
+                            {allFields.map(col => {
+                                if (col.type === 'location' || col.type === 'image') return null;
+                                const val = sub.data[col.id];
+                                if (val === undefined || val === null || val === '') return null;
+
+                                return (
+                                    <div key={col.id} className="flex flex-col">
+                                        <span className="font-semibold text-muted-foreground text-[10px] uppercase">{col.label}</span>
+                                        <span className="break-words">{Array.isArray(val) ? val.join(', ') : (typeof val === 'object' ? JSON.stringify(val) : String(val))}</span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )
+            }
+        }).filter((m): m is any => m !== null)
+    }, [flattenedData, allFields])
+
+    const handleExport = async () => {
+        if (!flattenedData.length) return
+
+        // Prepare data for Excel
+        const exportData = flattenedData.map(row => {
+            let formattedDate = ''
+            try {
+                formattedDate = row.created_at ? format(new Date(row.created_at), 'yyyy-MM-dd HH:mm:ss') : ''
+            } catch {
+                formattedDate = 'Invalid Date'
+            }
+
+            const standardFields: Record<string, unknown> = {
+                'ID': row.id,
+                'Enumerator': row.enumerator_name,
+                'Date': formattedDate,
+                'Latitude': '',
+                'Longitude': '',
+            }
+
+            // Try to find location from data
+            const locationField = form?.schema?.fields?.find(c => c.type === 'location')
+            if (locationField) {
+                const loc = parseLocation(row.data[locationField.id])
+                if (loc) {
+                    standardFields['Latitude'] = String(loc.lat)
+                    standardFields['Longitude'] = String(loc.lng)
+                }
+            }
+
+            const dynamicFields: Record<string, unknown> = {}
+            form?.schema?.fields?.forEach(col => {
+                const val = row.data[col.id]
+                dynamicFields[col.label] = typeof val === 'object' ? JSON.stringify(val) : val
+            })
+
+            return { ...standardFields, ...dynamicFields }
+        })
+
+        await exportToExcel(exportData, `${form?.title || 'form'}_submissions`)
     }
 
     if (isLoadingForm || isLoadingSubmissions) {
@@ -257,113 +309,14 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                             <MapIcon className="h-4 w-4 mr-2" /> Map
                         </TabsTrigger>
                     </TabsList>
-
-                    <div className="relative w-64">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search..."
-                            value={searchTerm}
-                            onChange={(e) => {
-                                setSearchTerm(e.target.value)
-                                setCurrentPage(1)
-                            }}
-                            className="pl-8"
-                        />
-                    </div>
                 </div>
 
                 <TabsContent value="table" className="flex-1 border rounded-md relative flex flex-col overflow-hidden">
-                    <div className="flex-1 overflow-auto">
-                        <Table>
-                            <TableHeader className="sticky top-0 bg-background z-10">
-                                <TableRow>
-                                    <TableHead>Enumerator</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    {columns.map(col => (
-                                        <TableHead key={col.id} className="min-w-[150px]">{col.label}</TableHead>
-                                    ))}
-                                    <TableHead className="w-[80px]">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {currentData.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={columns.length + 3} className="text-center py-10 text-muted-foreground">
-                                            No submissions found.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    currentData.map((row) => (
-                                        <TableRow key={row.id}>
-                                            <TableCell className="font-medium">{row.enumerator_name}</TableCell>
-                                            <TableCell className="whitespace-nowrap">
-                                                {row.created_at ? format(new Date(row.created_at), 'dd MMM yyyy, HH:mm') : '-'}
-                                            </TableCell>
-                                            {columns.map(col => (
-                                                <TableCell key={col.id}>
-                                                    {renderCellContent(col, row.data[col.id])}
-                                                </TableCell>
-                                            ))}
-                                            <TableCell>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        setSelectedSubmission(row)
-                                                        setIsDetailsOpen(true)
-                                                    }}
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-
-                    <div className="flex items-center justify-between px-4 py-4 border-t bg-background">
-                        <div className="text-sm text-muted-foreground">
-                            Showing {filteredData.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} entries
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setCurrentPage(1)}
-                                disabled={currentPage === 1}
-                            >
-                                <ChevronsLeft className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <span className="text-sm font-medium px-2">
-                                Page {currentPage} of {Math.max(1, totalPages)}
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages || totalPages === 0}
-                            >
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => setCurrentPage(totalPages)}
-                                disabled={currentPage === totalPages || totalPages === 0}
-                            >
-                                <ChevronsRight className="h-4 w-4" />
-                            </Button>
-                        </div>
+                    <div className="flex-1 overflow-auto p-4">
+                        <DataTable
+                            columns={tableColumns}
+                            data={flattenedData}
+                        />
                     </div>
                 </TabsContent>
 
@@ -383,7 +336,7 @@ export default function SubmissionsPage({ params }: { params: Promise<{ id: stri
                     </DialogHeader>
                     <div className="flex-1 overflow-y-auto pr-2 space-y-4 py-4">
                         <div className="grid gap-4">
-                            {columns.map(col => (
+                            {form?.schema?.fields?.map(col => (
                                 <div key={col.id} className="grid grid-cols-1 md:grid-cols-3 gap-2 border-b last:border-0 pb-3 last:pb-0">
                                     <span className="text-sm font-medium text-muted-foreground md:col-span-1">{col.label}</span>
                                     <div className="text-sm md:col-span-2 break-words">
